@@ -1,7 +1,3 @@
-if Network:is_client() then
-	return
-end
-
 _G.ChatCommand = _G.ChatCommand or {}
 
 Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
