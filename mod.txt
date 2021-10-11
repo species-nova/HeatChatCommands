@@ -1,0 +1,9 @@
+{
+	"name" : "Heat Chat Commands",
+	"author" : "Ravicale, Dr_Newbie",
+	"contact" : "It will do something if you type special command in chat.",
+	"version" : "1.0",
+	"hooks" : [
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/ChatCommand.lua"}
+	]
+}
