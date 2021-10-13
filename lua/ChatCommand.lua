@@ -53,6 +53,10 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			return
 		end
 
+		for i = 2, #args do
+			args[i] = string.lower(args[i])
+		end
+
 		local groups = tweak_data.group_ai.enemy_spawn_groups
 		for group, _ in pairs(groups) do
 			if string.lower(group) == args[2] then
@@ -78,6 +82,10 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			if not args[2] then
 				self:say("No unit name given.")
 				return
+			end
+
+			for i = 2, #args do
+				args[i] = string.lower(args[i])
 			end
 
 			local unit = peer:unit()
@@ -324,7 +332,252 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 		self:say("Spicy level is: " .. tostring(managers.groupai:state()._difficulty_value))
 	end,
 	"] - Returns the current difficulty value from GroupAI.")
-	
+
+
+	local variables = {}
+	local profilers = {}
+
+	--Have variables store weak external references so that GC isn't impacted.
+	local var_data_meta = {__mode = "v"}
+
+	function value_of(v, k, indent, seen)
+		indent = indent and indent .. "    " or ""
+		seen = seen or {}
+		k = k or "[Unknown]"
+
+		local type = type(v)
+		if type == "table" then
+			log(indent .. tostring(k) .. " = {")
+			value_of_table(v, k, indent, seen)
+			log(indent .. "}")
+		elseif type == "userdata" then
+			local v_table = getmetatable(v) or {}
+
+			log(indent .. tostring(k) .. " = " .. tostring(v) .. " | type = " .. type .. " {")
+			value_of_table(v_table, k, indent, seen)
+			log(indent .. "}")
+		else
+			log(indent .. tostring(k) .. " = " .. tostring(v) .. " | type = " .. type)
+		end
+	end
+
+	function value_of_table(t, name, indent, seen)
+		indent = indent and indent .. "    " or ""
+		seen = seen or {}
+		name = name or "[Unknown]"
+
+		if seen[t] then
+			log(indent .. "REFERENCE TO " .. seen[t])
+			return
+		end
+
+		seen[t] = tostring(name)
+		for k, v in pairs(t) do
+			value_of(v, k, indent, seen)
+		end
+	end
+
+	function unpack_variable(name)
+			local var = variables[name]
+			if not var then
+				self:say(name .. " has not been declared, or has been freed.")
+				return
+			end
+
+			value = var.value
+			parent = var.parent
+			key = var.key
+			if not value or not parent then
+				self:say(name .. " has been deallocated. Freeing metadata from memory.")
+				var = nil
+				profilers[name] = nil
+				return
+			end
+			return value, parent, key
+	end
+
+	self:AddCommand("let", false, true, function(peer, args)
+		--Ensure basic validity of syntax.
+		local name = args[2]
+		if #args < 3 or name:sub(1, 1) ~= "$" and args[3] ~= "=" then
+			self:say("Invalid arguments supplied.")
+			return
+		end
+
+		--Was called in the form of "/let %var =" without anything else.
+		--Set the variable to nothing.
+		if not args[4] then
+			self:say("Freeing " .. name)
+			variables[name] = nil
+			profilers[name] = nil
+			return
+		end
+
+		local curr, prev, key, start
+		if args[4]:sub(1, 1) == "$" then
+			curr, prev, key = unpack_variable(args[4])
+			if not curr then
+				return
+			end
+
+			start = 5
+		else
+			curr = _G
+			prev = _G
+			start = 4
+		end
+
+		local function call(curr, prev, name)
+			local temp = curr
+
+			if type(prev) == "userdata" then
+				curr = curr(prev)
+				prev = method
+			else
+				local result = false
+				result, curr = pcall(curr, prev)
+
+				if not result then
+					self:say("Function call to " .. name .. "failed")
+					return
+				end
+			end
+			  
+			prev = temp
+			return curr, prev
+		end
+
+		for i = start, #args do
+			local arg = args[i]
+
+			if arg == "()" and type(curr) == "function" then
+				curr, prev = call(curr, prev, name)
+
+				if not curr then
+					self:say("Trail ended at call to value " .. args[i - 1])
+					return
+				end
+			elseif type(curr) == "table" then
+				prev = curr
+				curr = curr[arg]
+				key = arg
+			elseif type(curr) == "userdata" then
+				local curr_metatable = getmetatable(curr) or {}
+				prev = curr
+				curr = curr_metatable[arg]
+				key = arg
+			else
+				self:say("Could not index value " .. args[i-1])
+				return
+			end
+
+			if not curr then
+				self:say("Trail ended at value " .. arg)
+				return
+			end
+		end
+
+		local var_data = {}
+		setmetatable(var_data, var_data_meta)
+		var_data.key = key
+		var_data.value = curr
+		var_data.parent = prev
+		variables[name] = var_data
+	end,
+	" $variableName(string) = $variableName(string)|luaVariable(string) luaVariable(string)] LOCAL - Stores a reference to the desired item in LUA for debugging. Leave reference blank to remove a variable.")
+
+	self:AddCommand("print", false, true, function(peer, args)
+		--Ensure basic validity of syntax.
+		for i = 2, #args do
+			name = args[i]
+			if name:sub(1, 1) ~= "$" then
+				self:say("Invalid variable name, \"" .. name .. "\" must begin with a $.")
+			else
+				value, parent, key = unpack_variable(name)
+				if value then
+					value_of(value, key)
+				end
+			end
+		end
+	end,
+	" $variableName(string, any number)] LOCAL - Prints out the desired variables and all of their subfields.")
+
+	function ChatManager:exec_variables(action, args)
+		for i = 2, #args do
+			local name = args[i]
+			if name:sub(1, 1) ~= "$" then
+				self:say("Invalid variable name, \"" .. name .. "\" must begin with a $.")
+			else
+				action(name)
+			end
+		end
+	end
+
+	self:AddCommand({"profile", "add_profiler", "remove_profiler"}, false, true, function(peer, args)
+		self:exec_variables(function(name)
+			value, parent, key = unpack_variable(name)
+			if value then
+				if not profilers[name] then
+					if type(value) == "function" and type(parent) == "table" then
+						local profiler = {
+							start_time = os.clock(),
+							exec_time = 0,
+							worst_time = 0,
+							calls = 0,
+							original_value = value
+						}
+						profilers[name] = profiler
+
+						parent[key] = function(...)
+							profiler.calls = profiler.calls + 1
+							local time = os.clock()
+							r = {value(...)}
+							local time_taken = os.clock() - time
+							profiler.exec_time = profiler.exec_time + time_taken
+							profiler.worst_time = math.max(profiler.worst_time, time_taken)
+							return unpack(r)
+						end
+						self:say("Established profiling on " .. name)
+					else
+						self:say("Variable " .. name .. " is not a function attached to a lua table, and therefore cannot be profiled.")
+					end
+				else
+					parent[key] = profilers[name].original_value
+					profilers[name] = nil
+					self:say("Removed profiling from " .. name)
+				end
+			end
+		end, args)
+	end,
+	" $variableName(string, any number)] LOCAL - Attaches/detaches profilers to the given functions to allow for their performance to be measured.")
+
+	self:AddCommand({"check", "check_profiler"}, false, true, function(peer, args)
+		local function check_profilers(name)
+			if profilers[name] then
+				local profiler = profilers[name]
+				local total_time = os.clock() - profiler.start_time
+				log(name .. " profiler data:")
+				log("    Calls = " .. profiler.calls)
+				log("    Average runtime = " .. tostring(profiler.exec_time / profiler.calls))
+				log("    % of runtime = " .. tostring(profiler.exec_time / total_time))
+				log("    Worst time = " .. tostring(profiler.worst_time))
+				log("    Total execution time = " .. tostring(profiler.exec_time))
+				log("    Profiler lifetime = " .. tostring(total_time))
+			else
+				self:say(name .. " does not have a profiler attached.")
+			end
+		end
+
+		if #args > 1 then
+			self:exec_variables(check_profilers, args)
+		else
+			for k, _ in pairs(profilers) do
+				check_profilers(k)
+			end
+		end
+	end,
+	" $variableName(string, any number, optional)] LOCAL - Prints out the current results from the desired profilers.")
+
 	self:AddCommand("help", false, false, function(peer, args)
 		if not args[2] then
 			args[2] = "help"
@@ -338,7 +591,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			end
 		end
 	end,
-	" commands(string, any number)] - Prints out descriptions of all listed commands. Valid commands can be searched for using \"/list\".")
+	" commands(string, repeatable)] - Prints out descriptions of all listed commands. Valid commands can be searched for using \"/list\".")
 
 	self:AddCommand("list", false, false, function(peer, args)
 		if not args[2] then
@@ -375,16 +628,17 @@ function ChatManager:receive_message_by_peer(channel_id, peer, message)
 	--Parse message for commands.
 	local message_str = tostring(message)
 	local prefix = message_str:sub(1, 1)
-	local args = string.lower(message_str:sub(2, message_str:len())):split(" ")
-	local command = args[1]
+	local args = message_str:sub(2, message_str:len()):split(" ")
+	local command = string.lower(args[1])
 
 	--Try to execute command.
 	--Only the host actually executes commands, but clients can ask the host to execute them.
 	if Utils:IsInHeist() and command and (prefix == "!" or prefix == "/") then 
-		if self._commands and self._commands[command] and (self._commands[command].ishost and peer:id() == 1 and Network and not Network:is_client())
+		if self._commands and self._commands[command] and (
+				(self._commands[command].ishost and peer:id() == 1 and Network and not Network:is_client())
 			or not self._commands[command].isHost and (
 				(self._commands[command].isLocal and managers.network:session():local_peer():id() == peer:id())
-				or (Network and not Network:is_client())) then
+				or (Network and not Network:is_client()))) then
 			self._commands[command].func(peer, args)
 		else
 			self:say("The command: " .. command .. " doesn't exist")
