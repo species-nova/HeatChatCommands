@@ -1,5 +1,5 @@
 _G.ChatCommand = _G.ChatCommand or {}
-
+--A
 Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	self:AddCommand({"jail", "custody"}, false, false, function(peer)
 		if not managers.trade:is_peer_in_custody(peer:id()) then
