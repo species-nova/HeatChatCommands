@@ -1,5 +1,5 @@
 _G.ChatCommand = _G.ChatCommand or {}
---A
+
 Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	self:AddCommand({"jail", "custody"}, false, false, function(peer)
 		if not managers.trade:is_peer_in_custody(peer:id()) then
@@ -620,10 +620,10 @@ function ChatManager:say(...)
 	end
 end
 
-local _receive_message_by_peer_orig = ChatManager.receive_message_by_peer
-function ChatManager:receive_message_by_peer(channel_id, peer, message)
-	--Get message normally
-	_receive_message_by_peer_orig(self, channel_id, peer, message)
+function ChatManager:execute_command(message, peer)
+	if not message then
+		return
+	end
 
 	--Parse message for commands.
 	local message_str = tostring(message)
@@ -644,6 +644,13 @@ function ChatManager:receive_message_by_peer(channel_id, peer, message)
 			self:say("The command: " .. command .. " doesn't exist")
 		end
 	end
+end
+
+local _receive_message_by_peer_orig = ChatManager.receive_message_by_peer
+function ChatManager:receive_message_by_peer(channel_id, peer, message)
+	--Get message normally
+	_receive_message_by_peer_orig(self, channel_id, peer, message)
+	self:execute_command(message, peer)
 end
 
 function ChatManager:AddCommand(cmd, ishost, isLocal, func, desc)
