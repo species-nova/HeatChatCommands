@@ -1,0 +1,37 @@
+/set_echo off
+/var $bootleg =
+/var $amcar =
+/var $jp36 =
+/var $lions_roar =
+/var $commando =
+/var $union =
+/var $para =
+/var $tempest =
+/var $clarion =
+/var $ak =
+/var $car4 =
+/var $uar =
+/var $ak17 =
+/var $ak5 =
+/var $sabr =
+/var $sabr_gl =
+/var $cr805 =
+/var $ak762 =
+/var $ak762_gold =
+/var $queens_wrath =
+/var $amr16 =
+/var $falcon =
+/var $krinkov =
+/var $eagle_heavy =
+/var $byk1 =
+/var $byk1_gl =
+/var $valkyria =
+/var $gecko =
+/var $little_friend =
+/var $little_friend_gl =
+/var $galant =
+/var $m308 =
+/var $gewehr =
+/var $ks12 =
+/set_echo on
+/echo Weapon variables removed.
