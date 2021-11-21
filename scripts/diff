@@ -1,0 +1,3 @@
+echo
+	"Diff:" [managers groupai state() _difficulty_value]
+end

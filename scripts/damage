@@ -1,0 +1,4 @@
+$_ds = [managers player player_unit() character_damage() damage_simple]
+$_ds({damage = 10000})
+$_ds({damage = $1})
+$_ds = nil
