@@ -220,7 +220,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	"] - Kills all enemies on the map.")
 
 	self:AddCommand({"set_level", "level"}, false, true, function(peer, args)
-		managers.experience:_set_current_level(math.min(math.max(args[2], 0), 100) or 100)
+		managers.experience:_set_current_level(math.min(math.max(args[2] or 100, 0), 100))
 	end,
 	" level(#, 1-100)] LOCAL - Sets the user's level.")
 
@@ -229,7 +229,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	end,
 	" points(#)] LOCAL - Gives the user perk points.")
 
-	self:AddCommand({""}, false, true, function(peer, args)
+	self:AddCommand({"money"}, false, true, function(peer, args)
 		managers.money:_add_to_total(args[2] or 1000000000)
 	end,
 	" cash(#)] LOCAL - Gives the user money.")
@@ -263,10 +263,10 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	end,
 	"] HOST ONLY - Toggles the generic GroupAI debug draw mode.")
 
-	self:AddCommand("speed", true, false, function(peer, type1, type2)
-		TimerManager:timer(Idstring("player")):set_multiplier(type2 or 1)
-		TimerManager:timer(Idstring("game")):set_multiplier(type2 or 1)
-		TimerManager:timer(Idstring("game_animation")):set_multiplier(type2 or 1)
+	self:AddCommand("speed", true, false, function(peer, args)
+		TimerManager:timer(Idstring("player")):set_multiplier(args[2] or 1)
+		TimerManager:timer(Idstring("game")):set_multiplier(args[2] or 1)
+		TimerManager:timer(Idstring("game_animation")):set_multiplier(args[2] or 1)
 	end,
 	" speedMultiplier(#)] HOST ONLY - Multiplies the speed of the game by speedMultiplier. If no multiplier is supplied, the speed is set to '1' (100%). Liable to explode if used in multiplayer.")
 
@@ -629,6 +629,10 @@ function ChatManager:execute_command(message, peer)
 	local message_str = tostring(message)
 	local prefix = message_str:sub(1, 1)
 	local args = message_str:sub(2, message_str:len()):split(" ")
+	if not args[1] then
+		return
+	end
+
 	local command = string.lower(args[1])
 
 	--Try to execute command.
