@@ -5,6 +5,18 @@
 	"version" : "1.0",
 	"hooks" : [
 		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/ChatManager.lua"}
-		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/ChatCommands.lua"}
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/HCCFramework.lua"}
+
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/ValueTypes/int.lua"}
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/ValueTypes/bool.lua"}
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/ValueTypes/traverse.lua"}
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/ValueTypes/variable.lua"}
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/ValueTypes/string.lua"}
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/ValueTypes/table.lua"}
+
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/Statements/print.lua"}
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/Statements/set.lua"}
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/Statements/echo.lua"}
+		{"hook_id" : "lib/managers/chatmanager", "script_path" : "lua/Statements/execscript.lua"}
 	]
 }

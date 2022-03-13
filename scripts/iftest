@@ -1,0 +1,77 @@
+if (true)
+	echo("THIS SHOULD PRINT")
+end
+
+if (not true)
+	echo("THIS SHOULD NOT PRINT")
+end
+
+if (not not true)
+	echo("THIS SHOULD PRINT")
+end
+
+if (not false)
+	echo("THIS SHOULD PRINT")
+end
+
+if (not not false)
+	echo("THIS SHOULD NOT PRINT")
+end
+
+if (false)
+	echo("THIS SHOULD NOT PRINT")
+end
+
+if (true)
+	if (false)
+		echo("THIS SHOULD NOT PRINT")
+	end
+end
+
+if (false)
+	if (true)
+		echo("THIS SHOULD NOT PRINT")
+	end
+end
+
+if (true)
+	if (false)
+		if (true)
+			echo("THIS SHOULD NOT PRINT")
+		end
+		echo("THIS SHOULD NOT PRINT")
+	end
+	echo("THIS SHOULD PRINT")
+end
+
+if (true and true)
+	echo("THIS SHOULD PRINT")
+end
+
+if (true or true)
+	echo("THIS SHOULD PRINT")
+end
+
+if (true or false)
+	echo("THIS SHOULD PRINT")
+end
+
+if (false or true)
+	echo("THIS SHOULD PRINT")
+end
+
+if (false and false)
+	echo("THIS SHOULD NOT PRINT")
+end
+
+if (true and false)
+	echo("THIS SHOULD NOT PRINT")
+end
+
+if (false and true)
+	echo("THIS SHOULD NOT PRINT")
+end
+
+if (false or false)
+	echo("THIS SHOULD NOT PRINT")
+end
