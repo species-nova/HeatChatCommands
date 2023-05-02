@@ -564,7 +564,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			self:say("/profile $" .. var)
 		end
 	end,
-	"] LOCAL - Attaches profilers for most update functions.")
+	"] LOCAL - Attaches/Detaches profilers for functions pre-defined in table.")
 
 	self:AddCommand({"profile", "add_profiler", "remove_profiler"}, LOCAL, function(peer, args)
 		self:exec_variables(function(name)
