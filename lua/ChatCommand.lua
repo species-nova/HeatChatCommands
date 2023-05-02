@@ -198,11 +198,11 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	end,
 	"] LOCAL - Spawns a grenade case at the user's feet.")
 
-	self:AddCommand({"first_aid_kit, fak"}, LOCAL, function()
+	self:AddCommand({"first_aid_kit", "fak"}, LOCAL, function()
 		local player = managers.player:local_player()
 		local pos = player:movement():m_pos()
 		local rot = player:movement():m_head_rot():y()
-		FirstAidKitBase.spawn( pos, rot, 0 , 0 )
+		FirstAidKitBase.spawn(pos, rot, 0, 0)
 	end,
 	"] LOCAL - Spawns a first aid kit at the user's feet.")
 
@@ -519,6 +519,53 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 		end
 	end
 
+	self:AddCommand("quick_add_profilers", LOCAL, function(peer, args)
+		local funcs = {
+			--weapon_factory_manager_update = "managers weapon_factory update",
+			--platform_manager_update = "managers platform update",
+			--user_manager_update = "managers user update",
+			--dyn_resource_manager_update = "managers dyn_resource update",
+			--system_menu_manager_update = "managers system_menu update",
+			--savefile_manager_update = "managers savefile update",
+			--menu_manager_update = "managers menu update",
+			--interaction_manager_update = "managers interaction update",
+			--dialog_manager_update = "managers dialog update",
+			enemy_manager_update = "managers enemy update",
+			--groupai_manager_update = "managers groupai update",
+			--spawn_manager_update = "managers spawn update",
+			--navigation_manager_update = "managers navigation update",
+			--hud_manager_update = "managers hud update",
+			--killzone_manager_update = "managers killzone update",
+			--game_play_central_manager_update = "managers game_play_central update",
+			--trade_manager_update = "managers trade update",
+			--statistics_manager_update = "managers statistics update",
+			--time_speed_manager_update = "managers time_speed update",
+			--objectives_manager_update = "managers objectives update",
+			--explosion_manager_update = "managers explosion update",
+			--fire_manager_update = "managers fire update",
+			--dot_manager_update = "managers dot update",
+			--motion_path_manager_update = "managers motion_path update",
+			--wait_manager_update = "managers wait update",
+			--achievment_manager_update = "managers achievment update",
+			--skirmish_manager_update = "managers skirmish update",
+			--menu_component_manager_update = "managers menu_component update",
+			--player_manager_update = "managers player update",
+			--charm_manager_update = "managers charm update",
+			--belt_manager_update = "managers belt update",
+			--blackmarket_manager_update = "managers blackmarket update",
+			--vote_manager_update = "managers vote update",
+			--vehicle_manager_update = "managers vehicle update",
+			--mutators_manager_update = "managers mutators update",
+			--crime_spree_manager_update = "managers crime_spree update"
+		}
+
+		for var, func in pairs(funcs) do
+			self:say("/let $" .. var .. " = " .. func)
+			self:say("/profile $" .. var)
+		end
+	end,
+	"] LOCAL - Attaches profilers for most update functions.")
+
 	self:AddCommand({"profile", "add_profiler", "remove_profiler"}, LOCAL, function(peer, args)
 		self:exec_variables(function(name)
 			local value, parent, key = unpack_variable(name)
@@ -566,11 +613,11 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 				local total_time = os.clock() - profiler.start_time
 				log(name .. " profiler data:")
 				log("    Calls = " .. profiler.calls)
-				log("    Average runtime = " .. tostring(profiler.exec_time / profiler.calls))
-				log("    % of runtime (includes non lua) = " .. tostring(profiler.exec_time / total_time))
-				log("    Worst time = " .. tostring(profiler.worst_time))
-				log("    Total execution time = " .. tostring(profiler.exec_time))
-				log("    Profiler lifetime = " .. tostring(total_time))
+				log("    Average runtime = " .. string.format("%.6f", profiler.exec_time / profiler.calls))
+				log("    % of runtime (includes non lua) = " .. string.format("%.3f", 100 * profiler.exec_time / total_time))
+				log("    Worst time = " .. string.format("%.6f", profiler.worst_time))
+				log("    Total execution time = " .. string.format("%.3f", profiler.exec_time))
+				log("    Profiler lifetime = " .. string.format("%.3f", total_time))
 			else
 				self:say(name .. " does not have a profiler attached.")
 			end
