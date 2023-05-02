@@ -1,7 +1,17 @@
 _G.ChatCommand = _G.ChatCommand or {}
 
+--Only the host can execute this command.
+local HOST = function(peer) return peer:id() == 1 and Network and Network:is_server() end
+
+--Only execute command on the local client that entered it.
+local LOCAL = function(peer) return managers.network:session():local_peer():id() == peer:id() end
+
+--Clients entering the command can execute it on the host.
+local REQUEST = function(peer) return Network and Network:is_server() end
+
+
 Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
-	self:AddCommand({"jail", "custody"}, false, false, function(peer)
+	self:AddCommand({"jail", "custody"}, LOCAL, function(peer)
 		if not managers.trade:is_peer_in_custody(peer:id()) then
 			if peer:id() == 1 then
 				local player = managers.player:local_player()
@@ -21,18 +31,18 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			end
 		end
 	end,
-	"] - Sends the user to custody.")
+	"] LOCAL - Sends the user to custody.")
 
-	self:AddCommand({"loud", "alarm"}, true, false, function()
+	self:AddCommand({"loud", "alarm"}, HOST, function()
 		if managers.groupai and managers.groupai:state() and managers.groupai:state():whisper_mode() then
 			managers.groupai:state():on_police_called("alarm_pager_hang_up")
 			managers.hud:show_hint( { text = "LOUD!" } )
 		end	
 	end,
-	"] HOST ONLY - Sounds the alarm. May softlock on certain heists if used too early.")
+	"] HOST - Sounds the alarm. May softlock on certain heists if used too early.")
 
 
-	self:AddCommand("ammo_clip", false, true, function(peer, type1, type2)
+	self:AddCommand("ammo_clip", HOST, function(peer, type1, type2)
 		local count = type2 or 1
 		local unit = managers.player:local_player()
 		local pos = unit:movement():m_pos()
@@ -45,9 +55,9 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			})
 		end
 	end,
-	"] - Spawns an ammo box at the host's feet.")
+	"] HOST - Spawns an ammo box at the host's feet.")
 	
-	self:AddCommand("spawngroup", true, false, function(peer, args)
+	self:AddCommand("spawngroup", HOST, function(peer, args)
 		if not args[2] then
 			self:say("No spawn group given.")
 			return
@@ -67,7 +77,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			
 		self:say("Invalid spawn group \"" .. args[2] .. "\"")
 	end,
-	" groupName(string)] Host Only - Forces the desired spawn group to be spawned in next during the next valid opportunity in an assault.")
+	" groupName(string)] HOST - Forces the desired spawn group to be spawned in next during the next valid opportunity in an assault. Reliant on Resmod/HEAT code!")
 
 
 	function set_team( unit, team )
@@ -77,7 +87,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 		unit:movement():set_team( AIState:team_data( team_id ) )
 	end
 
-	self:AddCommand("spawn", true, false, function(peer, args)
+	self:AddCommand("spawn", HOST, function(peer, args)
 		if peer and peer:unit() then
 			if not args[2] then
 				self:say("No unit name given.")
@@ -116,9 +126,9 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			end
 		end
 	end,
-	" unitCategory(string) count(#)] HOST ONLY - Spawns in one or more units of the desired GroupAI unitCategory at the host's location.")
+	" unitCategory(string) count(#)] HOST - Spawns in one or more units of the desired GroupAI unitCategory at the host's location.")
 
-	self:AddCommand({"restart"}, false, true, function()
+	self:AddCommand({"restart"}, HOST, function()
 		--Copy from Quick/Instant restart 1.0 by: FishTaco
 		local all_synced = true
 		for k,v in pairs(managers.network:session():peers()) do
@@ -130,73 +140,73 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			managers.game_play_central:restart_the_game()
 		end	
 	end,
-	"] - Restarts the current heist.")
+	"] HOST - Restarts the current heist.")
 
-	self:AddCommand({"revive"}, false, true, function()
+	self:AddCommand({"revive"}, LOCAL, function()
 		local player = managers.player:local_player()
 		player:character_damage():revive()
 	end,
-	"] - Revives the user from being downed.")
+	"] LOCAL - Revives the user from being downed.")
 
-	self:AddCommand({"reload"}, false, true, function()
+	self:AddCommand({"reload"}, LOCAL, function()
 		managers.player:refill_weapons()
 	end,
-	"] - Reloads all equipped guns.")
+	"] LOCAL - Reloads all equipped guns.")
 
-	self:AddCommand({"god"}, false, true, function()
+	self:AddCommand({"god"}, LOCAL, function()
 		local player = managers.player:local_player()
 		local is_god = player:character_damage():god_mode()
 		player:character_damage():set_god_mode(not is_god)
 	end,
-	"] - Enables/Disables god mode.")
+	"] LOCAL - Enables/Disables god mode.")
 
-	self:AddCommand("end", true, false, function()
+	self:AddCommand("end", HOST, function()
 		if game_state_machine:current_state_name() ~= "disconnected" then
 			MenuCallbackHandler:load_start_menu_lobby()
 		end	
 	end,
-	"] - Ends the current heist.")
+	"] HOST - Ends the current heist.")
 
-	self:AddCommand("win", true, false, function()
+	self:AddCommand("win", HOST, function()
 		local num_winners = managers.network:session():amount_of_alive_players() 
 		managers.network:session():send_to_peers("mission_ended", true, num_winners) 
 		game_state_machine:change_state_by_name("victoryscreen", {num_winners = num_winners, personal_win = true}) 
 	end,
-	"] - Wins the current heist.")
+	"] HOST - Wins the current heist.")
 
-	self:AddCommand({"doctor_bag", "db"}, false, true, function()
+	self:AddCommand({"doctor_bag", "db"}, LOCAL, function()
 		local player = managers.player:local_player()
 		local pos = player:movement():m_pos()
 		local rot = player:movement():m_head_rot():y()
 		DoctorBagBase.spawn(pos, rot, 0)
 	end,
-	"] - Spawns a doctor bag at the user's feet.")
+	"] LOCAL - Spawns a doctor bag at the user's feet.")
 
-	self:AddCommand({"ammo_bag", "ab"}, false, true, function()
+	self:AddCommand({"ammo_bag", "ab"}, LOCAL, function()
 		local player = managers.player:local_player()
 		local pos = player:movement():m_pos()
 		local rot = player:movement():m_head_rot():y()
 		AmmoBagBase.spawn(pos, rot, 0)
 	end,
-	"] - Spawns an ammo bag at the user's feet.")
+	"] LOCAL - Spawns an ammo bag at the user's feet.")
 
-	self:AddCommand({"grenade_case", "gc", "throwable_case", "throwables_case", "tc"}, false, true, function()
+	self:AddCommand({"grenade_case", "gc", "throwable_case", "throwables_case", "tc"}, LOCAL, function()
 		local player = managers.player:local_player()
 		local pos = player:movement():m_pos()
 		local rot = player:movement():m_head_rot():y()
 		GrenadeCrateBase.spawn(pos, rot, 0)
 	end,
-	"] - Spawns a grenade case at the user's feet.")
+	"] LOCAL - Spawns a grenade case at the user's feet.")
 
-	self:AddCommand({"first_aid_kit, fak"}, false, true, function()
+	self:AddCommand({"first_aid_kit, fak"}, LOCAL, function()
 		local player = managers.player:local_player()
 		local pos = player:movement():m_pos()
 		local rot = player:movement():m_head_rot():y()
 		FirstAidKitBase.spawn( pos, rot, 0 , 0 )
 	end,
-	"] - Spawns a first aid kit at the user's feet.")
+	"] LOCAL - Spawns a first aid kit at the user's feet.")
 
-	self:AddCommand("mark", false, false, function()
+	self:AddCommand("mark", LOCAL, function()
 		local player = managers.player:local_player()
 		local targets = World:find_units_quick("sphere", player:movement():m_pos(), math.huge, managers.slot:get_mask("trip_mine_targets"))
 
@@ -206,9 +216,9 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			end
 		end
 	end,
-	"] - Marks all markeable units on the map. This includes enemies and civilians.")
+	"] LOCAL - Marks all markeable units on the map. This includes enemies and civilians.")
 
-	self:AddCommand("nuke", false, false, function()
+	self:AddCommand("nuke", LOCAL, function()
 		local player = managers.player:local_player()
 		local targets = World:find_units_quick("sphere", player:movement():m_pos(), math.huge, managers.slot:get_mask("enemies"))
 		for _, unit in ipairs(targets) do
@@ -217,24 +227,24 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			end
 		end
 	end,
-	"] - Kills all enemies on the map.")
+	"] LOCAL - Kills all enemies on the map.")
 
-	self:AddCommand({"set_level", "level"}, false, true, function(peer, args)
+	self:AddCommand({"set_level", "level"}, LOCAL, function(peer, args)
 		managers.experience:_set_current_level(math.min(math.max(args[2] or 100, 0), 100))
 	end,
 	" level(#, 1-100)] LOCAL - Sets the user's level.")
 
-	self:AddCommand({"perk_points", "pp"}, false, true, function(peer, args)
+	self:AddCommand({"perk_points", "pp"}, LOCAL, function(peer, args)
 		managers.skilltree:give_specialization_points(args[2] or 1000000000)
 	end,
 	" points(#)] LOCAL - Gives the user perk points.")
 
-	self:AddCommand({"money"}, false, true, function(peer, args)
+	self:AddCommand({"money"}, LOCAL, function(peer, args)
 		managers.money:_add_to_total(args[2] or 1000000000)
 	end,
 	" cash(#)] LOCAL - Gives the user money.")
 
-	self:AddCommand("free", false, false, function(peer)
+	self:AddCommand("free", REQUEST, function(peer)
 		if peer and peer:unit() and managers.trade then
 			local unit = peer:unit()
 			local nowtime = math.floor(TimerManager:game():time())
@@ -254,24 +264,24 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			end
 		end
 	end,
-	"] - Frees the user from custody.")
+	"] REQUEST - Frees the user from custody.")
 
 	local reading_minds = false
-	self:AddCommand("read_minds", true, false, function()
+	self:AddCommand("read_minds", HOST, function()
 		managers.groupai:state():set_debug_draw_state(not reading_minds)
 		reading_minds = not reading_minds
 	end,
-	"] HOST ONLY - Toggles the generic GroupAI debug draw mode.")
+	"] HOST - Toggles the generic GroupAI debug draw mode.")
 
-	self:AddCommand("speed", true, false, function(peer, args)
+	self:AddCommand("speed", HOST, function(peer, args)
 		TimerManager:timer(Idstring("player")):set_multiplier(args[2] or 1)
 		TimerManager:timer(Idstring("game")):set_multiplier(args[2] or 1)
 		TimerManager:timer(Idstring("game_animation")):set_multiplier(args[2] or 1)
 	end,
-	" speedMultiplier(#)] HOST ONLY - Multiplies the speed of the game by speedMultiplier. If no multiplier is supplied, the speed is set to '1' (100%). Liable to explode if used in multiplayer.")
+	" speedMultiplier(#)] HOST - Multiplies the speed of the game by speedMultiplier. If no multiplier is supplied, the speed is set to '1' (100%). Liable to explode if used in multiplayer.")
 
 	local frozen = false
-	self:AddCommand("freeze", true, false, function()
+	self:AddCommand("freeze", HOST, function()
 		if not frozen then
 			TimerManager:timer(Idstring("game")):set_multiplier(0.000001)
 			TimerManager:timer(Idstring("game_animation")):set_multiplier(0.000001)
@@ -280,10 +290,10 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			TimerManager:timer(Idstring("game_animation")):set_multiplier(1)
 		end
 	end,
-	"] HOST ONLY - Toggles slowing down everything except the player to a near standstill. Useful for screenshots, liable to explode if used in multiplayer.")
+	"] HOST - Toggles slowing down everything except the player to a near standstill. Useful for screenshots, liable to explode if used in multiplayer.")
 	
 	local visible = true
-	self:AddCommand("invisible", true, false, function()
+	self:AddCommand("invisible", HOST, function()
 		if visible then
 			local unit = managers.player:local_player()
 			managers.groupai:state():unregister_AI_attention_object(unit:key())
@@ -297,41 +307,36 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			managers.groupai:state():register_AI_attention_object(unit, attention_handler, nav_tracker, SO_access, team)
 		end
 	end,
-	"] HOST ONLY - Makes the host invisible to any NPCs that have not yet gotten their attention object. If the host is already invisible, then it makes them visible again.")
+	"] HOST - Makes the host invisible to any NPCs that have not yet gotten their attention object. If the host is already invisible, then it makes them visible again.")
 
-	self:AddCommand("enduring", false, true, function()
-		managers.player:check_enduring()
-	end,
-	"] LOCAL - Triggers the bot enduring skill.")
-
-	self:AddCommand({"assault", "start_assault", "eat_ass"}, true, false, function()
+	self:AddCommand({"assault", "start_assault", "eat_ass"}, HOST, function()
 		managers.groupai:state():set_assault_mode(true)
 	end,
-	"] HOST ONLY - Starts the police assault mode in GroupAI.")
+	"] HOST - Starts the police assault mode in GroupAI.")
 
-	self:AddCommand({"end_assault", "end_ass"}, true, false, function()
+	self:AddCommand({"end_assault", "end_ass"}, HOST, function()
 		managers.groupai:state():force_end_assault_phase(true)
 	end,
-	"] HOST ONLY - Ends the current police assault in GroupAI.")
+	"] HOST - Ends the current police assault in GroupAI.")
 
-	self:AddCommand({"die", "down"}, false, true, function()
+	self:AddCommand({"die", "down"}, LOCAL, function()
 		local damage_ext = managers.player:local_player():character_damage()
 		damage_ext:damage_simple({damage = 100000})
 		damage_ext:damage_simple({damage = 100000})
 	end,
 	"] LOCAL - Downs the user.")
 
-	self:AddCommand("damage", false, true, function(peer, args)
+	self:AddCommand("damage", LOCAL, function(peer, args)
 		local damage_ext = managers.player:local_player():character_damage()
 		local amount = args[2] or 50
 		damage_ext:damage_simple({damage = amount * 0.1, armor_piercing = (not (args[3] and args[3] == "true"))})
 	end,
 	" amount(#) piercing(true|false)] LOCAL - Deals damage to the user. Defaults to 50 armor piercing damage.")
 	
-	self:AddCommand("diff", false, false, function()
+	self:AddCommand("diff", REQUEST, function()
 		self:say("Spicy level is: " .. tostring(managers.groupai:state()._difficulty_value))
 	end,
-	"] - Returns the current difficulty value from GroupAI.")
+	"] REQUEST - Returns the current difficulty value from GroupAI.")
 
 
 	local variables = {}
@@ -340,6 +345,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	--Have variables store weak external references so that GC isn't impacted.
 	local var_data_meta = {__mode = "v"}
 
+	--TODO: Use optimized variants from heatdebugtools.lua. These are miserably slow are easily improved ~2X by using table.concat.
 	function value_of(v, k, indent, seen)
 		indent = indent and indent .. "    " or ""
 		seen = seen or {}
@@ -396,7 +402,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			return value, parent, key
 	end
 
-	self:AddCommand("let", false, true, function(peer, args)
+	self:AddCommand("let", LOCAL, function(peer, args)
 		--Ensure basic validity of syntax.
 		local name = args[2]
 		if #args < 3 or name:sub(1, 1) ~= "$" and args[3] ~= "=" then
@@ -486,7 +492,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	end,
 	" $variableName(string) = $variableName(string)|luaVariable(string) luaVariable(string)] LOCAL - Stores a reference to the desired item in LUA for debugging. Leave reference blank to remove a variable.")
 
-	self:AddCommand("print", false, true, function(peer, args)
+	self:AddCommand("print", LOCAL, function(peer, args)
 		--Ensure basic validity of syntax.
 		for i = 2, #args do
 			name = args[i]
@@ -513,9 +519,9 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 		end
 	end
 
-	self:AddCommand({"profile", "add_profiler", "remove_profiler"}, false, true, function(peer, args)
+	self:AddCommand({"profile", "add_profiler", "remove_profiler"}, LOCAL, function(peer, args)
 		self:exec_variables(function(name)
-			value, parent, key = unpack_variable(name)
+			local value, parent, key = unpack_variable(name)
 			if value then
 				if not profilers[name] then
 					if type(value) == "function" and type(parent) == "table" then
@@ -529,15 +535,17 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 						profilers[name] = profiler
 
 						parent[key] = function(...)
+							--TODO: Look into vanilla code at lib\units\vehicles\npc\npcvehicledrivingext.lua:328 and see if using Profiler works better than os.clock.
+							--TODO: Default attach a profiler to most top level update() available in lua to see if I can get the actual lua runtime.
 							profiler.calls = profiler.calls + 1
 							local time = os.clock()
-							r = {value(...)}
+							local r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20 = value(...)
 							local time_taken = os.clock() - time
 							profiler.exec_time = profiler.exec_time + time_taken
 							profiler.worst_time = math.max(profiler.worst_time, time_taken)
-							return unpack(r)
+							return r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20
 						end
-						self:say("Established profiling on " .. name)
+						self:say("Established profiling on " .. name .. " at " .. tostring(parent[key]))
 					else
 						self:say("Variable " .. name .. " is not a function attached to a lua table, and therefore cannot be profiled.")
 					end
@@ -551,7 +559,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	end,
 	" $variableName(string, any number)] LOCAL - Attaches/detaches profilers to the given functions to allow for their performance to be measured.")
 
-	self:AddCommand({"check", "check_profiler"}, false, true, function(peer, args)
+	self:AddCommand({"check", "check_profiler"}, LOCAL, function(peer, args)
 		local function check_profilers(name)
 			if profilers[name] then
 				local profiler = profilers[name]
@@ -559,7 +567,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 				log(name .. " profiler data:")
 				log("    Calls = " .. profiler.calls)
 				log("    Average runtime = " .. tostring(profiler.exec_time / profiler.calls))
-				log("    % of runtime = " .. tostring(profiler.exec_time / total_time))
+				log("    % of runtime (includes non lua) = " .. tostring(profiler.exec_time / total_time))
 				log("    Worst time = " .. tostring(profiler.worst_time))
 				log("    Total execution time = " .. tostring(profiler.exec_time))
 				log("    Profiler lifetime = " .. tostring(total_time))
@@ -578,7 +586,7 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 	end,
 	" $variableName(string, any number, optional)] LOCAL - Prints out the current results from the desired profilers.")
 
-	self:AddCommand("help", false, false, function(peer, args)
+	self:AddCommand("help", LOCAL, function(peer, args)
 		if not args[2] then
 			args[2] = "help"
 		end
@@ -591,26 +599,28 @@ Hooks:PostHook(ChatManager, "init" , "ChatCommand" , function(self)
 			end
 		end
 	end,
-	" commands(string, repeatable)] - Prints out descriptions of all listed commands. Valid commands can be searched for using \"/list\".")
+	" commands(string, repeatable)] LOCAL - Prints out descriptions of all listed commands. Valid commands can be searched for using \"/list\".")
 
-	self:AddCommand("list", false, false, function(peer, args)
+	self:AddCommand("list", LOCAL, function(peer, args)
 		if not args[2] then
 			self:say("You must supply a query. Not all commands will fit in the chat window.")
 			return
 		end
 
-		local list = "Matching commands: "
+		local list = {"Matching commands: "}
 		for k, _ in pairs(self._commands) do
 			for i = 2, #args do
 				if string.match(k, args[i]) then
-					list = list .. '[' .. k .. '] '
+					list[#list + 1] = "["
+					list[#list + 1] = k
+					list[#list + 1] = "] "
 					break
 				end
 			end
 		end
-		self:say(list)
+		self:say(table.concat(list))
 	end,
-	" queries(string, any number)] - Lists all commands that match any of the desired queries.")
+	" queries(string, any number)] LOCAL - Lists all commands that match any of the desired queries.")
 end)
 
 function ChatManager:say(...)
@@ -638,12 +648,11 @@ function ChatManager:execute_command(message, peer)
 	--Try to execute command.
 	--Only the host actually executes commands, but clients can ask the host to execute them.
 	if Utils:IsInHeist() and command and (prefix == "!" or prefix == "/") then 
-		if self._commands and self._commands[command] and (
-				(self._commands[command].ishost and peer:id() == 1 and Network and not Network:is_client())
-			or not self._commands[command].isHost and (
-				(self._commands[command].isLocal and managers.network:session():local_peer():id() == peer:id())
-				or (Network and not Network:is_client()))) then
+		local command_data = self._commands and self._commands[command]
+		if command_data and command_data.locality and command_data.locality(peer) then
 			self._commands[command].func(peer, args)
+		elseif command_data then
+			self:say("You do not have permission to execute the command: " .. command)
 		else
 			self:say("The command: " .. command .. " doesn't exist")
 		end
@@ -657,14 +666,14 @@ function ChatManager:receive_message_by_peer(channel_id, peer, message)
 	self:execute_command(message, peer)
 end
 
-function ChatManager:AddCommand(cmd, ishost, isLocal, func, desc)
+function ChatManager:AddCommand(cmd, locality, func, desc)
 	if not self._commands then
 		self._commands = {}
 	end
 
 	local function add(name)
 		self._commands[name] = {}
-		self._commands[name].ishost = ishost
+		self._commands[name].locality = locality
 		self._commands[name].func = func
 		self._commands[name].desc = desc
 	end
